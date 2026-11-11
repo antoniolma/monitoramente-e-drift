@@ -1,0 +1,52 @@
+ROTEIRO 5 · MONITORAMENTO DE UM DETECTOR DE PHISHING EM PRODUÇÃO
+Cibersegurança Aplicada com Inteligência Artificial · Insper 2026-2
+
+CENÁRIO
+A Atlas Logística (empresa fictícia) filtra os e-mails que chegam aos seus 3.000
+funcionários com um detector de phishing. O modelo foi treinado nas semanas 1 a 6,
+o limiar de 0,30 foi escolhido nas semanas 7 e 8 (precisão de pelo menos 0,90) e o
+modelo entrou em produção na semana 9. Ele nunca foi retreinado. Você recebe os
+registros de 32 semanas de produção (9 a 40) e o time quer saber o que aconteceu,
+se o retreino automático com o feedback dos usuários é uma boa ideia e como montar
+o monitoramento daqui para a frente.
+
+ARQUIVOS
+  modelo_producao.joblib  RandomForestClassifier do scikit-learn 1.9.1
+                          (n_estimators=100, max_depth=12, min_samples_leaf=5, random_state=7)
+  referencia.csv.gz       semanas 1 a 8: 24.166 e-mails, com rótulo verificado
+  producao.csv.gz         semanas 9 a 40: 97.326 e-mails
+  ouro.csv.gz             2.928 e-mails da referência verificados pelo SOC e congelados
+                          (928 phishing e 2000 legítimos)
+
+DICIONÁRIO DE DADOS (features calculadas pelo gateway)
+  n_links               número de links no corpo
+  link_divergente       fração dos links cujo texto aponta para um domínio e o endereço para outro
+  idade_dominio_dias    idade do domínio do remetente, em dias (consulta WHOIS)
+  spf_dkim_ok           1 se SPF e DKIM passaram
+  anexo_risco           1 se há anexo de tipo arriscado (html, iso, lnk, zip com executável)
+  palavras_urgencia     número de expressões de urgência ("urgente", "bloqueio", "último aviso")
+  erros_ortografia      erros de ortografia a cada 100 palavras
+  pede_credencial       1 se pede login, senha ou código
+  pede_pagamento        1 se pede pagamento ou troca de dados bancários
+  remetente_externo     1 se o remetente é de fora da empresa
+  primeiro_contato      1 se é a primeira vez que o remetente escreve para o destinatário
+  tem_qr_code           1 se há imagem com QR code
+  tamanho_kb            tamanho do e-mail em KB
+
+OUTRAS COLUNAS
+  id_email              identificador
+  semana                semana do ano (1 a 40)
+  score                 probabilidade de phishing dada pelo modelo em produção
+  alerta                1 se score >= 0,30: o e-mail foi para a quarentena
+  destinatario          caixa que recebeu o e-mail (u0000 a u2999)
+  feedback_usuario      -1 o usuário liberou da quarentena ("não é phishing");
+                        +1 o usuário reportou um e-mail entregue ("é phishing"); 0 nada
+  rotulo_pipeline       rótulo que o retreino automático usaria: 1 se ficou em quarentena e
+                        ninguém liberou, ou se alguém reportou; 0 no resto
+  rotulo                rótulo verificado pelo SOC (1 = phishing). Chega com 2 semanas de
+                        atraso: no início da semana t você conhece os rótulos até a semana t-3.
+
+REGRAS
+  Limiar fixo de 0,30 em todos os itens. Hiperparâmetros e janelas estão no enunciado.
+  Não use o rotulo de uma semana antes de ele estar disponível, salvo quando o item pedir
+  a avaliação retrospectiva.
